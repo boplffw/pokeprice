@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>卡价簿</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🃏</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Familjen+Grotesk:wght@500;700&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#EEF1F5; --surface:#FFFFFF; --sleeve:#F7F9FB; --ink:#18202E; --muted:#5B6577; --line:#D5DBE4;
+  --rise:#138A5E; --fall:#C8372D; --pick:#F5C33B; --btn:#24324A; --btn-ink:#FFFFFF;
+  --head:"Familjen Grotesk","Noto Sans SC",system-ui,sans-serif;
+  --body:"Noto Sans SC","PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root{--bg:#141922; --surface:#1D2430; --sleeve:#222B39; --ink:#E7EBF2; --muted:#98A2B4; --line:#323C4D;
+    --rise:#3CC48D; --fall:#F06B60; --btn:#E7EBF2; --btn-ink:#141922;}
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg); color:var(--ink); font:15px/1.6 var(--body)}
+button,input{font:inherit; color:inherit}
+:focus-visible{outline:2px solid var(--pick); outline-offset:2px}
+
+header{display:flex; flex-wrap:wrap; gap:16px; align-items:center; padding:20px clamp(16px,4vw,40px);
+  border-bottom:1px solid var(--line); background:var(--surface)}
+h1{font:700 26px/1 var(--head); margin:0; letter-spacing:-.01em}
+.searchbar{flex:1; display:flex; gap:8px; min-width:280px}
+.searchbar input{flex:1; min-width:0; padding:9px 12px; border:1px solid var(--line); border-radius:8px; background:var(--bg)}
+.searchbar input.set{flex:0 1 140px}
+.btn{padding:9px 16px; border-radius:8px; border:1px solid var(--btn); background:var(--btn); color:var(--btn-ink); cursor:pointer; white-space:nowrap; font-weight:500}
+.btn.ghost{background:transparent; color:var(--ink); border-color:var(--line)}
+.btn:disabled{opacity:.55; cursor:progress}
+.updated{color:var(--muted); font-size:13px}
+
+#results{display:none; padding:20px clamp(16px,4vw,40px); background:var(--surface); border-bottom:1px solid var(--line)}
+#results.open{display:block}
+.results-head{display:flex; justify-content:space-between; align-items:center; margin-bottom:12px}
+.results-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:14px; max-height:56vh; overflow:auto}
+.result{display:flex; flex-direction:column; gap:6px; font-size:13px}
+.result img{width:100%; aspect-ratio:63/88; object-fit:cover; border-radius:6px; background:var(--sleeve)}
+.result .btn{padding:5px 10px; font-size:13px}
+
+main{display:grid; grid-template-columns:minmax(0,1fr) minmax(320px,420px); gap:28px; padding:28px clamp(16px,4vw,40px); align-items:start}
+@media (max-width:860px){main{grid-template-columns:1fr}}
+
+/* 活页册 */
+.binder{display:grid; grid-template-columns:repeat(auto-fill,minmax(170px,1fr)); gap:18px}
+.sleeve{all:unset; box-sizing:border-box; cursor:pointer; background:var(--sleeve); border:1px solid var(--line);
+  border-radius:10px; padding:10px; display:flex; flex-direction:column; gap:8px; position:relative}
+.sleeve[aria-pressed="true"]{border-color:var(--pick); box-shadow:0 0 0 3px var(--pick)}
+.sleeve img,.sleeve .noimg{width:100%; aspect-ratio:63/88; border-radius:6px; object-fit:cover; background:var(--line)}
+.sleeve .name{font-weight:700; line-height:1.3}
+.sleeve .meta{font-size:12px; color:var(--muted)}
+.sleeve .row{display:flex; justify-content:space-between; align-items:baseline; gap:6px}
+.price{font:700 18px/1 var(--head)}
+.chg{font-size:13px; font-weight:500}
+.up{color:var(--rise)} .down{color:var(--fall)} .flat{color:var(--muted)}
+.bell{position:absolute; top:16px; right:16px; background:var(--pick); color:#18202E; font-size:12px; font-weight:700;
+  padding:2px 8px; border-radius:999px}
+
+.empty{grid-column:1/-1; padding:48px 24px; text-align:center; color:var(--muted); border:1px dashed var(--line); border-radius:10px}
+
+/* 详情 */
+aside{background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:22px; position:sticky; top:20px}
+aside h2{font:700 22px/1.2 var(--head); margin:0}
+aside .sub{color:var(--muted); font-size:13px; margin:4px 0 16px}
+.bigprice{font:700 40px/1 var(--head); letter-spacing:-.02em}
+.changes{display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin:16px 0}
+.changes div{background:var(--bg); border-radius:8px; padding:8px 10px; font-size:12px; color:var(--muted)}
+.changes b{display:block; font-size:15px}
+.tabs{display:flex; flex-wrap:wrap; gap:6px; margin:6px 0 10px}
+.tab{padding:4px 10px; border-radius:999px; border:1px solid var(--line); background:transparent; cursor:pointer; font-size:13px}
+.tab[aria-pressed="true"]{background:var(--btn); color:var(--btn-ink); border-color:var(--btn)}
+.chart{width:100%; height:200px; display:block}
+.chart .grid{stroke:var(--line); stroke-width:1}
+.chart text{fill:var(--muted); font-size:11px; font-family:var(--body)}
+.chart .lineup{stroke:var(--rise)} .chart .linedown{stroke:var(--fall)}
+.alerts{display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:18px}
+.alerts label{font-size:13px; color:var(--muted); display:flex; flex-direction:column; gap:4px}
+.alerts input{width:100%; min-width:0; padding:7px 10px; border:1px solid var(--line); border-radius:8px; background:var(--bg); color:var(--ink)}
+.actions{display:flex; gap:8px; margin-top:12px; flex-wrap:wrap}
+.danger{color:var(--fall)}
+.hint{color:var(--muted); font-size:13px}
+
+#toast{position:fixed; left:50%; bottom:24px; transform:translateX(-50%); background:var(--btn); color:var(--btn-ink);
+  padding:10px 18px; border-radius:10px; max-width:min(560px,90vw); display:none; white-space:pre-line; z-index:9}
+#toast.show{display:block}
+@media (prefers-reduced-motion:no-preference){ #toast.show{animation:pop .2s ease-out} @keyframes pop{from{opacity:0; transform:translate(-50%,8px)}} }
+.alertinfo{display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:18px}
+.alertinfo div{background:var(--bg); border-radius:8px; padding:8px 10px; font-size:12px; color:var(--muted)}
+.alertinfo b{display:block; font-size:15px; color:var(--ink)}
+a.btn{text-decoration:none; display:inline-block}
+.steps{margin:6px 0 0; padding-left:20px; color:var(--muted); font-size:13px}
+</style>
+</head>
+<body>
+<header>
+  <h1>卡价簿</h1>
+  <form class="searchbar" id="searchForm" onsubmit="return false">
+    <input id="q" placeholder="英文卡名，如 Charizard" aria-label="卡名">
+    <input id="set" class="set" placeholder="系列（可选）" aria-label="系列">
+    <button class="btn ghost" id="searchBtn" type="submit">搜索</button>
+  </form>
+  <a class="btn" id="updateBtn" target="_blank" rel="noopener">立即更新</a>
+  <span class="updated" id="updated"></span>
+</header>
+
+<section id="results" aria-live="polite">
+  <div class="results-head"><strong id="resultsTitle">搜索结果</strong><button class="btn ghost" id="closeResults">关闭</button></div>
+  <div class="results-grid" id="resultsGrid"></div>
+</section>
+
+<main>
+  <div class="binder" id="binder"></div>
+  <aside id="detail"><p class="hint">点一张卡查看价格走势和提醒设置。</p></aside>
+</main>
+<div id="toast" role="status"></div>
+
+<script>
+const $ = s => document.querySelector(s);
+let data = {cards:{}, watchlist:[]}, cards = [], selected = null, activeSeries = null, range = 90;
+
+// 仓库地址：优先用工作流写入的 data.repo，否则从 xxx.github.io/仓库名 推断
+function repo(){
+  if (data.repo) return data.repo;
+  const m = location.hostname.match(/^([^.]+)\.github\.io$/);
+  const seg = location.pathname.split("/").filter(Boolean)[0];
+  return m && seg ? m[1] + "/" + seg : null;
+}
+const workflowURL = () => repo() ? `https://github.com/${repo()}/actions/workflows/update.yml` : null;
+
+const fmt = (v, cur) => v == null ? "–" : (cur === "EUR" ? "€" : "$") + v.toLocaleString("en-US", {minimumFractionDigits:2, maximumFractionDigits:2});
+function change(now, old){
+  if (now == null || !old) return {text:"–", cls:"flat"};
+  const p = (now - old) / old * 100;
+  return {text:(p > 0 ? "+" : "") + p.toFixed(1) + "%", cls: p > 0.05 ? "up" : p < -0.05 ? "down" : "flat"};
+}
+function esc(s){ const d = document.createElement("div"); d.textContent = s ?? ""; return d.innerHTML; }
+function toast(msg, ms = 4000){ const t = $("#toast"); t.textContent = msg; t.classList.add("show"); clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove("show"), ms); }
+const dayNum = d => new Date(d + "T00:00:00Z").getTime() / 864e5;
+
+function summarize(w){
+  const c = data.cards[w.card_id] || {};
+  const s = c.series && c.main && c.series[c.main];
+  const out = {...w, name:c.name || w.card_id, set_name:c.set_name || "等待首次更新", number:c.number || "", image:c.image, url:c.url,
+               series:c.series || {}, main:c.main, price:null, currency:null, prev:null, d7:null, d30:null, day:null, alerts:[]};
+  if (s && s.points.length){
+    const pts = s.points, last = pts[pts.length - 1];
+    const ago = n => { const t = dayNum(last[0]) - n; for (let i = pts.length - 1; i >= 0; i--) if (dayNum(pts[i][0]) <= t) return pts[i][1]; return null; };
+    Object.assign(out, {price:last[1], currency:s.currency, day:last[0], prev:pts.length > 1 ? pts[pts.length - 2][1] : null, d7:ago(7), d30:ago(30)});
+    if (w.below != null && last[1] <= w.below) out.alerts.push("已跌到提醒线 " + fmt(w.below, s.currency) + " 以下");
+    if (w.above != null && last[1] >= w.above) out.alerts.push("已涨到提醒线 " + fmt(w.above, s.currency) + " 以上");
+  }
+  return out;
+}
+
+async function load(){
+  try {
+    const res = await fetch("data.json?t=" + Date.now());
+    if (!res.ok) throw new Error(res.status);
+    data = await res.json();
+  } catch(e){ toast("读取价格数据失败（" + e.message + "）"); }
+  cards = (data.watchlist || []).map(summarize).sort((a, b) => a.name.localeCompare(b.name));
+  if (data.updated) $("#updated").textContent = "更新于 " + new Date(data.updated).toLocaleString("zh-CN", {month:"numeric", day:"numeric", hour:"2-digit", minute:"2-digit"});
+  const wf = workflowURL();
+  if (wf) $("#updateBtn").href = wf; else $("#updateBtn").style.display = "none";
+  renderBinder(); renderDetail();
+}
+
+function renderBinder(){
+  const b = $("#binder");
+  if (!cards.length){
+    b.innerHTML = `<div class="empty">还没有关注的卡。<br>在上方搜索英文卡名（比如 Pikachu），然后点「关注」。</div>`;
+    return;
+  }
+  b.innerHTML = cards.map(c => {
+    const ch = change(c.price, c.prev);
+    const img = c.image ? `<img src="${esc(c.image)}" alt="" loading="lazy">` : `<div class="noimg"></div>`;
+    return `<button class="sleeve" data-id="${esc(c.card_id)}" aria-pressed="${c.card_id === selected}">
+      ${c.alerts.length ? `<span class="bell">提醒</span>` : ""}
+      ${img}
+      <span class="name">${esc(c.name)}</span>
+      <span class="meta">${esc(c.set_name)}${c.number ? " #" + esc(c.number) : ""}</span>
+      <span class="row"><span class="price">${fmt(c.price, c.currency)}</span><span class="chg ${ch.cls}">${ch.text}</span></span>
+    </button>`;
+  }).join("");
+  b.querySelectorAll(".sleeve").forEach(el => el.onclick = () => {
+    selected = el.dataset.id;
+    const c = cards.find(c => c.card_id === selected);
+    activeSeries = c && c.main;
+    renderBinder(); renderDetail();
+  });
+}
+
+const variantName = v => ({holofoil:"闪卡", reverseHolofoil:"反闪", normal:"普卡", "1stEditionHolofoil":"初版闪", "1stEditionNormal":"初版普", "1stEdition":"初版", unlimitedHolofoil:"无限版闪", unlimited:"无限版", Cardmarket:"Cardmarket (€)"}[v] || v);
+
+// 打开 GitHub 上的"手动运行"页面，并把卡牌 ID 复制好
+async function goWorkflow(cardId, what){
+  const wf = workflowURL();
+  if (cardId) { try { await navigator.clipboard.writeText(cardId); } catch(e){} }
+  if (!wf){ toast(`卡牌 ID：${cardId}\n请到仓库的 Actions →「更新卡价」→ Run workflow，选择「${what}」并粘贴 ID。`, 9000); return; }
+  toast(`${cardId ? "已复制卡牌 ID " + cardId + "。" : ""}在打开的页面点 Run workflow，选择「${what}」${cardId ? "，粘贴 ID" : ""}后运行。约 1 分钟后刷新本页即可看到。`, 9000);
+  window.open(wf, "_blank", "noopener");
+}
+
+function renderDetail(){
+  const d = $("#detail");
+  const c = cards.find(c => c.card_id === selected);
+  if (!c){
+    d.innerHTML = `<p class="hint">点一张卡查看价格走势和提醒设置。</p>
+      <p class="hint">价格每天自动更新一次。要关注新卡、修改提醒或取消关注，都是在 GitHub 的 Actions 页面运行「更新卡价」，本页的按钮会帮你打开它。</p>`;
+    return;
+  }
+  const ch = [["较上次", c.prev], ["7 天", c.d7], ["30 天", c.d30]].map(([l, o]) => { const x = change(c.price, o); return `<div>${l}<b class="${x.cls}">${x.text}</b></div>`; }).join("");
+  const keys = Object.keys(c.series);
+  d.innerHTML = `
+    <h2>${esc(c.name)}</h2>
+    <div class="sub">${esc(c.set_name)}${c.number ? " #" + esc(c.number) : ""} · ${esc(c.card_id)}${c.main ? " · 参考价取 " + esc(variantName(c.main)) : ""}</div>
+    <div class="bigprice">${fmt(c.price, c.currency)}</div>
+    <div class="changes">${ch}</div>
+    ${c.alerts.map(a => `<p class="hint" style="color:var(--ink)">🔔 ${esc(a)}</p>`).join("")}
+    <div class="tabs" role="group" aria-label="版本">${keys.map(k => `<button class="tab" data-k="${esc(k)}" aria-pressed="${k === activeSeries}">${esc(variantName(k))}</button>`).join("")}</div>
+    <div class="tabs" role="group" aria-label="时间范围">${[[30,"30 天"],[90,"90 天"],[0,"全部"]].map(([v,l]) => `<button class="tab" data-r="${v}" aria-pressed="${v === range}">${l}</button>`).join("")}</div>
+    <div>${chartSVG(c)}</div>
+    <div class="alertinfo">
+      <div>跌到多少提醒<b>${c.below != null ? fmt(c.below, "USD") : "未设置"}</b></div>
+      <div>涨到多少提醒<b>${c.above != null ? fmt(c.above, "USD") : "未设置"}</b></div>
+    </div>
+    <div class="actions">
+      <button class="btn" id="editAlerts">修改提醒</button>
+      <button class="btn ghost danger" id="removeCard">取消关注</button>
+      ${c.url ? `<a class="btn ghost" href="${esc(c.url)}" target="_blank" rel="noopener">在 TCGplayer 查看</a>` : ""}
+    </div>`;
+  d.querySelectorAll("[data-k]").forEach(b => b.onclick = () => { activeSeries = b.dataset.k; renderDetail(); });
+  d.querySelectorAll("[data-r]").forEach(b => b.onclick = () => { range = +b.dataset.r; renderDetail(); });
+  $("#editAlerts").onclick = () => goWorkflow(c.card_id, "关注卡牌（填入新的提醒价）");
+  $("#removeCard").onclick = () => goWorkflow(c.card_id, "取消关注");
+}
+
+function chartSVG(c){
+  const s = c.series[activeSeries];
+  if (!s) return `<p class="hint">还没有价格记录，等下一次自动更新。</p>`;
+  let pts = s.points.map(([d, v]) => [new Date(d + "T00:00:00").getTime(), v]);
+  if (range){ const cut = pts[pts.length - 1][0] - range * 864e5; pts = pts.filter(p => p[0] >= cut); }
+  if (pts.length < 2) return `<p class="hint">目前只有 ${pts.length} 天的记录（${fmt(pts[0]?.[1], s.currency)}）。价格每天自动更新，走势图会慢慢画出来。</p>`;
+  const W = 380, H = 200, L = 52, R = 8, T = 10, B = 26;
+  const xs = pts.map(p => p[0]), ys = pts.map(p => p[1]);
+  const x0 = Math.min(...xs), x1 = Math.max(...xs);
+  let y0 = Math.min(...ys), y1 = Math.max(...ys);
+  const pad = (y1 - y0 || y1 * 0.1 || 1) * 0.12; y0 -= pad; y1 += pad;
+  const X = t => L + (t - x0) / (x1 - x0) * (W - L - R);
+  const Y = v => T + (1 - (v - y0) / (y1 - y0)) * (H - T - B);
+  const path = pts.map((p, i) => (i ? "L" : "M") + X(p[0]).toFixed(1) + "," + Y(p[1]).toFixed(1)).join(" ");
+  const cls = ys[ys.length - 1] >= ys[0] ? "lineup" : "linedown";
+  const ticks = [0, .5, 1].map(f => y0 + (y1 - y0) * f);
+  const date = t => { const d = new Date(t); return (d.getMonth() + 1) + "/" + d.getDate(); };
+  const last = pts[pts.length - 1];
+  return `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(variantName(activeSeries))} 价格走势">
+    ${ticks.map(v => `<line class="grid" x1="${L}" x2="${W - R}" y1="${Y(v)}" y2="${Y(v)}"/><text x="${L - 6}" y="${Y(v) + 4}" text-anchor="end">${fmt(v, s.currency)}</text>`).join("")}
+    <text x="${L}" y="${H - 6}">${date(x0)}</text><text x="${W - R}" y="${H - 6}" text-anchor="end">${date(x1)}</text>
+    <path d="${path}" fill="none" class="${cls}" stroke-width="2" stroke-linejoin="round"/>
+    <circle cx="${X(last[0])}" cy="${Y(last[1])}" r="3.5" class="${cls}" fill="var(--surface)" stroke-width="2"/>
+  </svg>`;
+}
+
+// 搜索直接在浏览器里调用 Pokémon TCG API
+async function search(){
+  const q = $("#q").value.trim();
+  if (!q){ $("#q").focus(); return; }
+  const btn = $("#searchBtn"); btn.disabled = true; btn.textContent = "搜索中…";
+  $("#results").classList.add("open");
+  $("#resultsTitle").textContent = `“${q}” 的搜索结果`;
+  $("#resultsGrid").innerHTML = `<p class="hint">正在查询…</p>`;
+  try {
+    const clean = t => t.replace(/["\\]/g, "");
+    let query = `name:"${clean(q)}*"`;
+    const set = $("#set").value.trim();
+    if (set) query += ` set.name:"${clean(set)}*"`;
+    const params = new URLSearchParams({q:query, pageSize:24, orderBy:"-set.releaseDate", select:"id,name,number,set,images,tcgplayer,cardmarket"});
+    const res = await fetch("https://api.pokemontcg.io/v2/cards?" + params);
+    if (!res.ok) throw new Error("API 返回 " + res.status);
+    const results = (await res.json()).data;
+    const watched = new Set(cards.map(c => c.card_id));
+    const price = r => {
+      const tp = (r.tcgplayer || {}).prices || {};
+      for (const v of ["1stEditionHolofoil","holofoil","reverseHolofoil","normal", ...Object.keys(tp)]) if (tp[v] && (tp[v].market || tp[v].mid)) return fmt(tp[v].market || tp[v].mid, "USD");
+      const cm = (r.cardmarket || {}).prices || {};
+      return cm.trendPrice != null ? fmt(cm.trendPrice, "EUR") : "暂无报价";
+    };
+    $("#resultsGrid").innerHTML = results.length ? results.map(r => `
+      <div class="result">
+        ${r.images?.small ? `<img src="${esc(r.images.small)}" alt="${esc(r.name)}" loading="lazy">` : ""}
+        <strong>${esc(r.name)}</strong>
+        <span class="hint">${esc(r.set.name)} #${esc(r.number)} · ${price(r)}</span>
+        <button class="btn" data-add="${esc(r.id)}" ${watched.has(r.id) ? "disabled" : ""}>${watched.has(r.id) ? "已关注" : "关注"}</button>
+      </div>`).join("") : `<p class="hint">没有找到。试试只输入卡名的一部分，或去掉系列筛选。</p>`;
+    $("#resultsGrid").querySelectorAll("[data-add]").forEach(b => b.onclick = () => goWorkflow(b.dataset.add, "关注卡牌"));
+  } catch(e){ $("#resultsGrid").innerHTML = `<p class="hint">搜索失败：${esc(e.message)}。稍后再试。</p>`; }
+  btn.disabled = false; btn.textContent = "搜索";
+}
+
+$("#searchForm").addEventListener("submit", search);
+$("#closeResults").onclick = () => $("#results").classList.remove("open");
+$("#updateBtn").addEventListener("click", () => toast("在打开的页面点 Run workflow，保持「更新价格」直接运行。约 1 分钟后刷新本页。", 7000));
+load();
+</script>
+</body>
+</html>
